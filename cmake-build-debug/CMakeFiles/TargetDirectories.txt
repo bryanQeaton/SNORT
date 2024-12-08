@@ -1,0 +1,3 @@
+C:/Users/bryan/CLionProjects/SNORT/cmake-build-debug/CMakeFiles/SNORT.dir
+C:/Users/bryan/CLionProjects/SNORT/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/bryan/CLionProjects/SNORT/cmake-build-debug/CMakeFiles/rebuild_cache.dir
