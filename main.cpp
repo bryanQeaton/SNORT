@@ -15,8 +15,8 @@ this game presents no draws.
 
 
 struct Node {
-    int claimed_by=0; //1 or -1
-    std::vector<int> child_nodes={}; //holds the indexes in the unordered_map to the child nodes
+    int claimed_by=0;
+    std::vector<int> child_nodes={};
 };
 class Game {
     int turn=1;
@@ -69,7 +69,7 @@ std::vector<Node> grid_gen(const int &n,const int &m) {
         for (int x=0;x<m;x++) {
             for (const int* transform:transforms) {
                 if (0<=y+transform[0]&&y+transform[0]<n&&0<=x+transform[1]&&x+transform[1]<m) {
-                    int idx=y*m+x;
+                    const int idx=y*m+x;
                     int idx_t=(y+transform[0])*m+(x+transform[1]);
                     graph[idx].child_nodes.push_back(idx_t);
                 }
@@ -78,13 +78,10 @@ std::vector<Node> grid_gen(const int &n,const int &m) {
     }
     return graph;
 }
-
 int solve(Game &pos,int depth,int alpha=-1,int beta=1) {
     if (depth<=0){return 0;}
     std::vector<int> legal_moves=pos.legal_moves();
-    if (legal_moves.empty()) {
-        return -1;
-    }
+    if (legal_moves.empty()) {return -1;}
     int value=-1;
     for (int move:legal_moves) {
         pos.make_move(move);
@@ -95,12 +92,8 @@ int solve(Game &pos,int depth,int alpha=-1,int beta=1) {
             alpha=value;
         }
     }
-
     return value;
 }
-
-
-
 
 int main() {
     auto game=Game(grid_gen(5,4));
