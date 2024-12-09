@@ -16,12 +16,14 @@ move, not the player with more fields claimed.
 
 
 ```
+#include <vector>
 int main() {
+bool is_gameover=false;
     auto game=Game(grid_gen(5,4));
     auto moves=game.legal_moves(); //generate legal moves
     game.make_move(moves[0]); //make moves
     game.undo_move(); //undo moves
-    if (moves.empty()){is_gameover;} //move list is empty meaning game is in terminal state
+    if (moves.empty()){is_gameover=true;} //move list is empty meaning game is in terminal state
     //moves are in the form of an integer, they index a vector of nodes. if move==0 move is acting on the 0th node.
 
     return 0;
