@@ -87,9 +87,9 @@ int no_unclaimed_rule_naive(const std::vector<Node> &graph) {
                 if (graph[idx].claimed_by!=0){unclaimed=false;}
                 if (graph[idx].claimed_by==1){black=false;}
                 else if (graph[idx].claimed_by==-1){white=false;}
-                bool white_=true;
-                bool black_=true;
                 if (graph[idx].claimed_by==0) {
+                    bool black_=true;
+                    bool white_=true;
                     for (const int &idx_:graph[idx].child_nodes) {
                         if (graph[idx_].claimed_by==1){black_=false;}
                         else if (graph[idx_].claimed_by==-1){white_=false;}
@@ -120,7 +120,7 @@ int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
     int claimed_connected_count=0;
     //iterate over nodes in the graph
     for (const Node &node:graph) {
-        //if a node is claimed by nobody then we are interest in it
+        //if a node is claimed by nobody then we are interested in it
         if (node.claimed_by==0) {
             //does the node have a white child
             bool white=true;
@@ -138,18 +138,13 @@ int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
                 if (graph[idx].claimed_by==1){black=false;}
                 //if the child is black set flag
                 else if (graph[idx].claimed_by==-1){white=false;}
-                //is the child of the child node white
-                bool white_=true;
-                //is the child of the child node black
-                bool black_=true;
                 //if the child node is unclaimed
                 if (graph[idx].claimed_by==0) {
+                    bool black_=true;
                     //iterate over children of the child node
                     for (const int &idx_:graph[idx].child_nodes) {
                         //if the child of the child is white set flag
                         if (graph[idx_].claimed_by==1){black_=false;}
-                        //if the child of the child is black set flag
-                        else if (graph[idx_].claimed_by==-1){white_=false;}
                     }
                     //if the child of the child node is black set flag
                     if (black_){black_connected=true;}
@@ -171,20 +166,18 @@ int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
     //if a single claimed_connect exists, the score is flipped,
     //if two exist, the score is the same. this can be done with a modulo operation
     //final score is multiplied by turn because it makes intuitive sense, prove it wrong and ill remove it
-    if (claimed_connected_count%2!=0){return -(white_count-black_count)*turn;} //im not sure if *turn is needed
+    if (claimed_connected_count%2!=0){return std::max(std::min(-(white_count-black_count)*turn,1),-1);} //im not sure if *turn is needed
     //return final score given no fuckery
-    return white_count-black_count;
+    return std::max(std::min(white_count-black_count,1),-1);
 }
 
 
 //Pure solver
 int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
-    if (one_unclaimed_rule(pos.graph)){return 1;}
-    if (pos.legal_moves().empty()) {return -1;}
-    int rule=std::max(std::min(no_unclaimed_rule(pos.graph,pos.turn),1),-1);
-    if (rule!=0) {
-        return pos.turn*rule;
-    }
+    //if (one_unclaimed_rule(pos.graph)){return 1;} this save us one recursion step in a very small set of positions, its currently detrimental to the speed of the program.
+    //if (pos.legal_moves().empty()) {return -1;} passes all tests without this, I think this was a bandaid fix for a bug.
+    const int rule=std::max(std::min(no_unclaimed_rule(pos.graph,pos.turn),1),-1);
+    if (rule!=0) {return pos.turn*rule;}
     std::vector<int> legal_moves=pos.legal_moves();
     if (legal_moves.empty()) {return -1;}
     int value=-1;
