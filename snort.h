@@ -8,9 +8,9 @@ struct Node {
     std::vector<int> child_nodes={};
 };
 class Game {
-    int turn=1;
     std::vector<int> history={};
 public:
+    int turn=1;
     std::vector<Node> graph={};
     Game() =default;
     explicit Game(std::vector<Node> graph):graph(std::move(graph)){};
