@@ -72,27 +72,6 @@ bool one_unclaimed_rule(const std::vector<Node> &graph) {
     }
     return true;
 }
-int no_unclaimed_rule(const std::vector<Node> &graph) {
-    //return 1 for p1 win, -1 for p2 win, 0 for ongoing game
-    int white_count=0;
-    int black_count=0;
-    for (const Node &node:graph) {
-        if (node.claimed_by==0) {
-            bool white=true;
-            bool black=true;
-            bool unclaimed=true;
-            for (const int &idx:node.child_nodes) {
-                if (graph[idx].claimed_by!=0){unclaimed=false;}
-                if (graph[idx].claimed_by==1){black=false;}
-                else if (graph[idx].claimed_by==-1){white=false;}
-            }
-            if (unclaimed){return 0;}
-            if (white){white_count++;}
-            else if (black){black_count++;}
-        }
-    }
-    return white_count-black_count;
-}
 int no_unclaimed_rule_naive(const std::vector<Node> &graph) {
     //return 1 for p1 win, -1 for p2 win, 0 for ongoing game
     int white_count=0;
@@ -110,21 +89,90 @@ int no_unclaimed_rule_naive(const std::vector<Node> &graph) {
                 else if (graph[idx].claimed_by==-1){white=false;}
                 bool white_=true;
                 bool black_=true;
-                for (const int &idx_:graph[idx].child_nodes) {
-                    if (graph[idx_].claimed_by==1){black_=false;}
-                    else if (graph[idx_].claimed_by==-1){white_=false;}
+                if (graph[idx].claimed_by==0) {
+                    for (const int &idx_:graph[idx].child_nodes) {
+                        if (graph[idx_].claimed_by==1){black_=false;}
+                        else if (graph[idx_].claimed_by==-1){white_=false;}
+                    }
+                    if (white_){white_connected=true;}
+                    else if (black_){black_connected=true;}
                 }
-                if (white_){white_connected=true;}
-                else if (black_){black_connected=true;}
+
             }
             if (unclaimed){return 0;}
             if (white){white_count++;}
             else if (black){black_count++;}
             if (white&&black_connected){return 0;}
-            else if (black&&white_connected){return 0;}
-
+            if (black&&white_connected){return 0;}
         }
     }
+    return white_count-black_count;
+}
+int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
+    //return 1 for p1 win, -1 for p2 win, 0 for ongoing game
+    //counts the number of empty nodes that have children claimed by white
+    int white_count=0;
+    //counts the number of empty nodes that have children claimed by black
+    int black_count=0;
+    //counts the number of empty nodes that have children claimed by
+    //exclusively either side that are connected to nodes that have
+    //children claimed by the opposite side
+    int claimed_connected_count=0;
+    //iterate over nodes in the graph
+    for (const Node &node:graph) {
+        //if a node is claimed by nobody then we are interest in it
+        if (node.claimed_by==0) {
+            //does the node have a white child
+            bool white=true;
+            //does the node have a black child
+            bool black=true;
+            //is the child node unclaimed
+            bool unclaimed=true;
+            //is the child of the child node is black
+            bool black_connected=false;
+            //iterate over child nodes
+            for (const int &idx:node.child_nodes) {
+                //if the child is unclaimed set flag
+                if (graph[idx].claimed_by!=0){unclaimed=false;}
+                //if the child is white set flag
+                if (graph[idx].claimed_by==1){black=false;}
+                //if the child is black set flag
+                else if (graph[idx].claimed_by==-1){white=false;}
+                //is the child of the child node white
+                bool white_=true;
+                //is the child of the child node black
+                bool black_=true;
+                //if the child node is unclaimed
+                if (graph[idx].claimed_by==0) {
+                    //iterate over children of the child node
+                    for (const int &idx_:graph[idx].child_nodes) {
+                        //if the child of the child is white set flag
+                        if (graph[idx_].claimed_by==1){black_=false;}
+                        //if the child of the child is black set flag
+                        else if (graph[idx_].claimed_by==-1){white_=false;}
+                    }
+                    //if the child of the child node is black set flag
+                    if (black_){black_connected=true;}
+                }
+            }
+            //if a node is unclaimed return
+            if (unclaimed){return 0;}
+            //if a child node is white, incrememnt white count
+            if (white){white_count++;}
+            //if a child node is black, increment black count
+            else if (black){black_count++;}
+            //if a child node is white and one of its children is black increment
+            //the number of empty nodes that have children claimed by
+            //exclusively either side that are connected to nodes that have
+            //children claimed by the opposite side
+            if (white&&black_connected){claimed_connected_count++;}
+        }
+    }
+    //if a single claimed_connect exists, the score is flipped,
+    //if two exist, the score is the same. this can be done with a modulo operation
+    //final score is multiplied by turn because it makes intuitive sense, prove it wrong and ill remove it
+    if (claimed_connected_count%2!=0){return -(white_count-black_count)*turn;} //im not sure if *turn is needed
+    //return final score given no fuckery
     return white_count-black_count;
 }
 
@@ -133,7 +181,7 @@ int no_unclaimed_rule_naive(const std::vector<Node> &graph) {
 int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
     if (one_unclaimed_rule(pos.graph)){return 1;}
     if (pos.legal_moves().empty()) {return -1;}
-    int rule=std::max(std::min(no_unclaimed_rule_naive(pos.graph),1),-1);
+    int rule=std::max(std::min(no_unclaimed_rule(pos.graph,pos.turn),1),-1);
     if (rule!=0) {
         return pos.turn*rule;
     }
