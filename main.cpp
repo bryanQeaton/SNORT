@@ -1,61 +1,20 @@
 #include <iostream>
-#include <utility>
-#include <vector>
+#include <chrono>
+
+#include "snort.h"
 
 /*
 todo:
-okay so the rules of snort are you play on a graph.
-players take turns claiming nodes.
-players can only claim nodes that do not have child nodes of the opponents
+if there are no cells with unclaimed children, the outcome is determinable
 
-if no valid moves exist on your turn, you lose
 
-this game presents no draws.
+if there is 1 cell with unclaimed children and all other empty cells have mixed claimed children, side to move wins
 */
 
 
-struct Node {
-    int claimed_by=0;
-    std::vector<int> child_nodes={};
-};
-class Game {
-    int turn=1;
-    std::vector<int> history={};
-public:
-    std::vector<Node> graph={};
-    Game() =default;
-    explicit Game(std::vector<Node> graph):graph(std::move(graph)){};
-    void make_move(const int &idx) {
-        Node entry=graph[idx];
-        entry.claimed_by=turn;
-        graph[idx]=entry;
-        history.push_back(idx);
-        turn=-turn;
-    }
-    void undo_move() {
-        turn=-turn;
-        Node entry=graph[history.back()];
-        entry.claimed_by=0;
-        graph[history.back()]=entry;
-        history.pop_back();
-    }
-    [[nodiscard]] std::vector<int> legal_moves() const {
-        std::vector<int> moves;
-        for (int i=0;i<graph.size();i++) {
-            Node entry=graph[i];
-            bool legal=(entry.claimed_by==0);
-            for (const int &child_node : entry.child_nodes) {
-                Node child_entry=graph[child_node];
-                if (child_entry.claimed_by==-turn) {
-                    legal=false;
-                    break;
-                }
-            }
-            if (legal){moves.push_back(i);}
-        }
-        return moves;
-    }
-};
+
+
+//Graph tools
 std::vector<Node> grid_gen(const int &n,const int &m) {
     std::vector<Node> graph={};
     constexpr int transforms[4][2]={
@@ -78,14 +37,36 @@ std::vector<Node> grid_gen(const int &n,const int &m) {
     }
     return graph;
 }
-int solve(Game &pos,int depth,int alpha=-1,int beta=1) {
-    if (depth<=0){return 0;}
+bool one_unclaimed_rule(const std::vector<Node> &graph) { //if this returns true you can return a win for the sidetomove (return 1;)
+    int count_unclaimed=0;
+    for (const Node &node:graph) {
+        bool unclaimed=true;
+        bool plus_found=false;
+        bool minus_found=false;
+        for (const int &idx:node.child_nodes) {
+            if (graph[idx].claimed_by!=0){unclaimed=false;}
+            if (graph[idx].claimed_by==1){plus_found=true;}
+            else if (graph[idx].claimed_by==-1){minus_found=true;}
+        }
+        if (!unclaimed&&(!plus_found||!minus_found)){return false;}
+        if (unclaimed) {
+            count_unclaimed+=1;
+            if (count_unclaimed>1){return false;}
+        }
+    }
+    return true;
+}
+
+
+//Pure solver
+int solve(Game &pos,int alpha=-1, const int &beta=1) {
+    if (one_unclaimed_rule(pos.graph)){return 1;}
     std::vector<int> legal_moves=pos.legal_moves();
     if (legal_moves.empty()) {return -1;}
     int value=-1;
-    for (int move:legal_moves) {
+    for (const int &move:legal_moves) {
         pos.make_move(move);
-        value=std::max(value,-solve(pos,depth-1,-beta,-alpha));
+        value=std::max(value,-solve(pos,-beta,-alpha));
         pos.undo_move();
         if (value>alpha) {
             if (value>=beta){break;}
@@ -95,9 +76,43 @@ int solve(Game &pos,int depth,int alpha=-1,int beta=1) {
     return value;
 }
 
+void gen_dataset(const int &n) {
+    for (int i=1;i<=n;i++) {
+        for (int j=1;j<=n;j++) {
+            auto pos=Game(grid_gen(i,j));
+            std::cout<<"{"<<i<<","<<j<<","<<solve(pos)<<"},\n";
+        }
+    }
+}
+
 int main() {
-    auto game=Game(grid_gen(5,4));
-    std::cout<<solve(game,100);
+    int data[16][3]={
+        {1,1,1},
+        {1,2,1},
+        {1,3,1},
+        {1,4,1},
+        {2,1,1},
+        {2,2,-1},
+        {2,3,1},
+        {2,4,-1},
+        {3,1,1},
+        {3,2,1},
+        {3,3,1},
+        {3,4,1},
+        {4,1,1},
+        {4,2,-1},
+        {4,3,1},
+        {4,4,-1}
+    };
+    auto t0=std::chrono::high_resolution_clock::now();
+    for (int* point:data) {
+        auto pos=Game(grid_gen(point[0],point[1]));
+        if (solve(pos)==point[2]){std::cout<<"test complete!\n";}
+        else{std::cout<<"test failed!\n";}
+    }
+    auto t1=std::chrono::high_resolution_clock::now();
+    int count=std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
+    std::cout<<"time:"<<count<<"\n";
 
 
     return 0;
