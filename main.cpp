@@ -110,9 +110,7 @@ int no_unclaimed_rule_naive(const std::vector<Node> &graph) {
                 else if (graph[idx].claimed_by==-1){white=false;}
                 bool white_=true;
                 bool black_=true;
-                bool unclaimed_=true;
                 for (const int &idx_:graph[idx].child_nodes) {
-                    if (graph[idx_].claimed_by!=0){unclaimed_=false;}
                     if (graph[idx_].claimed_by==1){black_=false;}
                     else if (graph[idx_].claimed_by==-1){white_=false;}
                 }
