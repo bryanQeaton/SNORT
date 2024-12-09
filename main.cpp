@@ -18,9 +18,6 @@ for each node:
         sum^=hash
 */
 
-
-
-
 //Graph tools
 void ascii(const std::vector<Node> &graph,int n,int m) {
     char chars[3]={'X','_','O'};
@@ -29,7 +26,6 @@ void ascii(const std::vector<Node> &graph,int n,int m) {
         std::cout<<chars[graph[i].claimed_by+1]<<" ";
     }
 }
-
 std::vector<Node> grid_gen(const int &n,const int &m) {
     std::vector<Node> graph={};
     constexpr int transforms[4][2]={
@@ -171,15 +167,21 @@ int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
     return std::max(std::min(white_count-black_count,1),-1);
 }
 
-
 //Pure solver
 int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
     //if (one_unclaimed_rule(pos.graph)){return 1;} this save us one recursion step in a very small set of positions, its currently detrimental to the speed of the program.
     //if (pos.legal_moves().empty()) {return -1;} passes all tests without this, I think this was a bandaid fix for a bug.
-    const int rule=std::max(std::min(no_unclaimed_rule(pos.graph,pos.turn),1),-1);
+    const int rule=no_unclaimed_rule(pos.graph,pos.turn);
     if (rule!=0) {return pos.turn*rule;}
     std::vector<int> legal_moves=pos.legal_moves();
     if (legal_moves.empty()) {return -1;}
+    //move ordering
+    //claim as much open territory as possible
+    //nullify opponents territory
+    //these are purely guesses
+
+
+
     int value=-1;
     for (const int &move:legal_moves) {
         pos.make_move(move);
@@ -210,8 +212,7 @@ void gen_dataset(const int &n) {
         }
     }
 }
-
-int main() {
+void test() {
     int data[16][3]={
         {1,1,1},
         {1,2,1},
@@ -239,6 +240,15 @@ int main() {
     auto t1=std::chrono::high_resolution_clock::now();
     int count=std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
     std::cout<<"time:"<<count<<"\n";
+}
+int main() {
+    test();
+    //make a way to view a position and the corresponding minimax values of each move
+    //if a position is no longer purely tileable
+    //does that affect the minimax values for the side to move
+
+
+
 
 
     return 0;
