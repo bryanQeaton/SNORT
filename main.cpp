@@ -13,7 +13,7 @@ each node has 1 random hashing number.
 
 getting the hash of the graph is done by:
 for each node:
-    sum^=hash*outcome
+    sum^=hash*claimed_by
     for each child:
         sum^=hash
 */
@@ -68,7 +68,7 @@ bool one_unclaimed_rule(const std::vector<Node> &graph) {
     }
     return true;
 }
-int no_unclaimed_rule_naive(const std::vector<Node> &graph) {
+int no_unclaimed_rule_naive(const std::vector<Node> &graph,int turn) {
     //return 1 for p1 win, -1 for p2 win, 0 for ongoing game
     int white_count=0;
     int black_count=0;
@@ -102,10 +102,9 @@ int no_unclaimed_rule_naive(const std::vector<Node> &graph) {
             if (black&&white_connected){return 0;}
         }
     }
-    return white_count-black_count;
+    return std::max(std::min((white_count-black_count)*turn,1),-1);
 }
 int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
-    //return 1 for p1 win, -1 for p2 win, 0 for ongoing game
     //counts the number of empty nodes that have children claimed by white
     int white_count=0;
     //counts the number of empty nodes that have children claimed by black
@@ -161,24 +160,22 @@ int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
     }
     //if a single claimed_connect exists, the score is flipped,
     //if two exist, the score is the same. this can be done with a modulo operation
-    //final score is multiplied by turn because it makes intuitive sense, prove it wrong and ill remove it
-    if (claimed_connected_count%2!=0){return std::max(std::min(-(white_count-black_count)*turn,1),-1);} //im not sure if *turn is needed
+    if (claimed_connected_count%2!=0){return std::max(std::min(-(white_count-black_count)*turn,1),-1);}
     //return final score given no fuckery
-    return std::max(std::min(white_count-black_count,1),-1);
+    return std::max(std::min((white_count-black_count)*turn,1),-1);
 }
 
 //Pure solver
 int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
-    //if (one_unclaimed_rule(pos.graph)){return 1;} this save us one recursion step in a very small set of positions, its currently detrimental to the speed of the program.
-    //if (pos.legal_moves().empty()) {return -1;} passes all tests without this, I think this was a bandaid fix for a bug.
-    const int rule=no_unclaimed_rule(pos.graph,pos.turn);
-    if (rule!=0) {return pos.turn*rule;}
+    //if (one_unclaimed_rule(pos.graph)){return 1;} //this save us one recursion step in a very small set of positions, its currently detrimental to the speed of the program.
+    //if (pos.legal_moves().empty()) {return -1;} //passes all tests without this, I think this was a bandaid fix for a bug.
+    const int rule=no_unclaimed_rule_naive(pos.graph,pos.turn);
+    if (rule!=0) {return rule;}
     std::vector<int> legal_moves=pos.legal_moves();
     if (legal_moves.empty()) {return -1;}
     //move ordering
-    //claim as much open territory as possible
     //nullify opponents territory
-    //these are purely guesses
+    //claim as much open territory as possible
 
 
 
@@ -194,8 +191,8 @@ int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
     }
 
     //debug
-    if (value!=rule*pos.turn&&rule!=0) {
-        std::cout<<"true value:"<<value<<" predicted:"<<pos.turn*rule<<"\n";
+    if (value!=rule&&rule!=0) {
+        std::cout<<"true value:"<<value<<" predicted:"<<rule<<"\n";
         ascii(pos.graph,1,m);
         std::cout<<"\n";
     }
@@ -241,14 +238,44 @@ void test() {
     int count=std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count();
     std::cout<<"time:"<<count<<"\n";
 }
+void move_values(Game &pos,int n,int m) {
+    ascii(pos.graph,n,m);
+    std::cout<<"\n";
+    std::vector<int> legal_moves=pos.legal_moves();
+    std::vector<int> scores={};
+    for (int move:legal_moves) {
+        pos.make_move(move);
+        scores.push_back(1);
+        pos.undo_move();
+    }
+    int c=0;
+    for (int i=0;i<pos.graph.size();i++) {
+        if (i%m==0){std::cout<<"\n";}
+        if (legal_moves[c]==i) {
+            std::cout<<scores[c]<<" ";
+            c++;
+        }
+        else{std::cout<<"0 ";}
+    }
+
+}
 int main() {
-    test();
+    //test();
     //make a way to view a position and the corresponding minimax values of each move
     //if a position is no longer purely tileable
     //does that affect the minimax values for the side to move
-
-
-
+    auto pos=Game(grid_gen(4,4));
+    pos.make_move(7);
+    pos.make_move(0);
+    pos.make_move(11);
+    pos.make_move(1);
+    pos.make_move(13);
+    pos.make_move(2);
+    pos.make_move(14);
+    pos.make_move(4);
+    pos.make_move(15);
+    move_values(pos,4,4);
+    test();
 
 
     return 0;
