@@ -17,6 +17,7 @@ move, not the player with more fields claimed.
 
 ```
 #include <vector>
+#include "snort.h"
 int main() {
 bool is_gameover=false;
     auto game=Game(grid_gen(5,4));
