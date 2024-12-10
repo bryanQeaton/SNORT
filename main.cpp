@@ -1,4 +1,6 @@
 #include <iostream>
+#include <algorithm>
+#include <ranges>
 #include <chrono>
 
 #include "snort.h"
@@ -104,66 +106,46 @@ int no_unclaimed_rule_naive(const std::vector<Node> &graph,int turn) {
     }
     return std::max(std::min((white_count-black_count)*turn,1),-1);
 }
-int no_unclaimed_rule(const std::vector<Node> &graph,int turn) {
-    //counts the number of empty nodes that have children claimed by white
-    int white_count=0;
-    //counts the number of empty nodes that have children claimed by black
-    int black_count=0;
-    //counts the number of empty nodes that have children claimed by
-    //exclusively either side that are connected to nodes that have
-    //children claimed by the opposite side
-    int claimed_connected_count=0;
-    //iterate over nodes in the graph
-    for (const Node &node:graph) {
-        //if a node is claimed by nobody then we are interested in it
-        if (node.claimed_by==0) {
-            //does the node have a white child
-            bool white=true;
-            //does the node have a black child
-            bool black=true;
-            //is the child node unclaimed
-            bool unclaimed=true;
-            //is the child of the child node is black
-            bool black_connected=false;
-            //iterate over child nodes
-            for (const int &idx:node.child_nodes) {
-                //if the child is unclaimed set flag
-                if (graph[idx].claimed_by!=0){unclaimed=false;}
-                //if the child is white set flag
-                if (graph[idx].claimed_by==1){black=false;}
-                //if the child is black set flag
-                else if (graph[idx].claimed_by==-1){white=false;}
-                //if the child node is unclaimed
-                if (graph[idx].claimed_by==0) {
-                    bool black_=true;
-                    //iterate over children of the child node
-                    for (const int &idx_:graph[idx].child_nodes) {
-                        //if the child of the child is white set flag
-                        if (graph[idx_].claimed_by==1){black_=false;}
-                    }
-                    //if the child of the child node is black set flag
-                    if (black_){black_connected=true;}
-                }
+
+//Heuristic solver
+//return best move given position
+//unclaimed =1.5
+//opp claimed=1
+//you claimed=0
+int heuristicsolve(Game &pos) {
+    std::vector<int> legal_moves=pos.legal_moves();
+    std::vector<double> scores;
+    for (int &node:legal_moves) {
+        double score=0.0;
+        for (int &idx:pos.graph[node].child_nodes) {
+            if (pos.graph[idx].claimed_by==0){score+=1;}
+            for (int &idx_:pos.graph[idx].child_nodes) {
+                if (pos.graph[idx_].claimed_by==0){score+=.9;}
+                if (pos.graph[idx_].claimed_by==pos.turn){score-=1.4;}
+                if (pos.graph[idx_].claimed_by==-pos.turn){score+=1.5;}
             }
-            //if a node is unclaimed return
-            if (unclaimed){return 0;}
-            //if a child node is white, incrememnt white count
-            if (white){white_count++;}
-            //if a child node is black, increment black count
-            else if (black){black_count++;}
-            //if a child node is white and one of its children is black increment
-            //the number of empty nodes that have children claimed by
-            //exclusively either side that are connected to nodes that have
-            //children claimed by the opposite side
-            if (white&&black_connected){claimed_connected_count++;}
         }
+        scores.push_back(score);
     }
-    //if a single claimed_connect exists, the score is flipped,
-    //if two exist, the score is the same. this can be done with a modulo operation
-    if (claimed_connected_count%2!=0){return std::max(std::min(-(white_count-black_count)*turn,1),-1);}
-    //return final score given no fuckery
-    return std::max(std::min((white_count-black_count)*turn,1),-1);
+
+    ascii(pos.graph,5,4);
+    std::cout<<"\n";
+    int c=0;
+    for (int i=0;i<pos.graph.size();i++) {
+        if (i%4==0){std::cout<<"\n";}
+        if (legal_moves[c]==i&&c<legal_moves.size()) {
+            if (scores[c]>=0){std::cout<<" ";}
+            std::cout<<scores[c]<<" ";
+            c++;
+        }
+        else{std::cout<<" 0 ";}
+    }
+    std::cout<<"\n";
+
+    int idx=static_cast<int>(std::distance(scores.begin(),std::max_element(scores.begin(), scores.end())));
+    return legal_moves[idx];
 }
+
 
 //Pure solver
 int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
@@ -245,37 +227,43 @@ void move_values(Game &pos,int n,int m) {
     std::vector<int> scores={};
     for (int move:legal_moves) {
         pos.make_move(move);
-        scores.push_back(1);
+        scores.push_back(-solve(pos,m));
         pos.undo_move();
     }
     int c=0;
     for (int i=0;i<pos.graph.size();i++) {
         if (i%m==0){std::cout<<"\n";}
-        if (legal_moves[c]==i) {
+        if (legal_moves[c]==i&&c<legal_moves.size()) {
+            if (scores[c]>=0){std::cout<<" ";}
             std::cout<<scores[c]<<" ";
             c++;
         }
-        else{std::cout<<"0 ";}
+        else{std::cout<<" 0 ";}
     }
+    std::cout<<"\n";
 
 }
 int main() {
-    //test();
-    //make a way to view a position and the corresponding minimax values of each move
-    //if a position is no longer purely tileable
-    //does that affect the minimax values for the side to move
-    auto pos=Game(grid_gen(4,4));
-    pos.make_move(7);
-    pos.make_move(0);
-    pos.make_move(11);
-    pos.make_move(1);
-    pos.make_move(13);
-    pos.make_move(2);
+    auto pos=Game(grid_gen(5,4));
+    pos.make_move(9);
     pos.make_move(14);
-    pos.make_move(4);
+    pos.make_move(5);
+    pos.make_move(12);
+    pos.make_move(17);
+    pos.make_move(7);
+    pos.make_move(1);
     pos.make_move(15);
-    move_values(pos,4,4);
-    test();
+    pos.make_move(11);
+    pos.make_move(3);
+    pos.make_move(0);
+    pos.make_move(19);
+    pos.make_move(4);
+    move_values(pos,5,4);
+
+    pos.make_move(heuristicsolve(pos));
+    ascii(pos.graph,5,4);
+    //move_values(pos,5,4);
+    //test();
 
 
     return 0;
