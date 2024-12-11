@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <numeric>
 #include <ranges>
 #include <chrono>
 
@@ -108,26 +109,22 @@ int no_unclaimed_rule_naive(const std::vector<Node> &graph,int turn) {
 }
 
 //Heuristic solver
-//return best move given position
-//unclaimed =1.5
-//opp claimed=1
-//you claimed=0
+constexpr double heuristic_coefficients[4]={1,.9,-1.4,1.5};
 int heuristicsolve(Game &pos) {
     std::vector<int> legal_moves=pos.legal_moves();
     std::vector<double> scores;
     for (int &node:legal_moves) {
         double score=0.0;
         for (int &idx:pos.graph[node].child_nodes) {
-            if (pos.graph[idx].claimed_by==0){score+=1;}
+            if (pos.graph[idx].claimed_by==0){score+=heuristic_coefficients[0];}
             for (int &idx_:pos.graph[idx].child_nodes) {
-                if (pos.graph[idx_].claimed_by==0){score+=.9;}
-                if (pos.graph[idx_].claimed_by==pos.turn){score-=1.4;}
-                if (pos.graph[idx_].claimed_by==-pos.turn){score+=1.5;}
+                if (pos.graph[idx_].claimed_by==0){score+=heuristic_coefficients[1];}
+                else if (pos.graph[idx_].claimed_by==pos.turn){score+=heuristic_coefficients[2];}
+                else if (pos.graph[idx_].claimed_by==-pos.turn){score+=heuristic_coefficients[3];}
             }
         }
         scores.push_back(score);
     }
-
     ascii(pos.graph,5,4);
     std::cout<<"\n";
     int c=0;
@@ -141,13 +138,13 @@ int heuristicsolve(Game &pos) {
         else{std::cout<<" 0 ";}
     }
     std::cout<<"\n";
-
-    int idx=static_cast<int>(std::distance(scores.begin(),std::max_element(scores.begin(), scores.end())));
+    int idx=static_cast<int>(std::distance(scores.begin(),std::ranges::max_element(scores)));
     return legal_moves[idx];
 }
 
-
 //Pure solver
+double error_count=0;
+double beta_count=0;
 int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
     //if (one_unclaimed_rule(pos.graph)){return 1;} //this save us one recursion step in a very small set of positions, its currently detrimental to the speed of the program.
     //if (pos.legal_moves().empty()) {return -1;} //passes all tests without this, I think this was a bandaid fix for a bug.
@@ -156,18 +153,36 @@ int solve(Game &pos,int m,int alpha=-1, const int &beta=1) {
     std::vector<int> legal_moves=pos.legal_moves();
     if (legal_moves.empty()) {return -1;}
     //move ordering
-    //nullify opponents territory
-    //claim as much open territory as possible
-
-
-
+    std::vector<double> scores;
+    for (int &node:legal_moves) {
+        double score=0.0;
+        for (int &idx:pos.graph[node].child_nodes) {
+            if (pos.graph[idx].claimed_by==0){score+=heuristic_coefficients[0];}
+            for (int &idx_:pos.graph[idx].child_nodes) {
+                if (pos.graph[idx_].claimed_by==0){score+=heuristic_coefficients[1];}
+                else if (pos.graph[idx_].claimed_by==pos.turn){score+=heuristic_coefficients[2];}
+                else if (pos.graph[idx_].claimed_by==-pos.turn){score+=heuristic_coefficients[3];}
+            }
+        }
+        scores.push_back(score);
+    }
+    std::vector<int> indices(legal_moves.size());
+    std::iota(indices.begin(), indices.end(), 0);
+    std::ranges::sort(indices, [&](int i, int j) {return scores[i]>scores[j];});
+    std::vector<int> sorted_moves(legal_moves.size());
+    for (size_t i = 0; i < indices.size(); ++i) {sorted_moves[i]=legal_moves[indices[i]];}
+    legal_moves=std::move(sorted_moves);
     int value=-1;
-    for (const int &move:legal_moves) {
-        pos.make_move(move);
+    for (int m=0;m<legal_moves.size();m++) {
+        pos.make_move(legal_moves[m]);
         value=std::max(value,-solve(pos,m,-beta,-alpha));
         pos.undo_move();
         if (value>alpha) {
-            if (value>=beta){break;}
+            if (value>=beta) {
+                if (m>0){error_count++;}
+                beta_count++;
+                break;
+            }
             alpha=value;
         }
     }
@@ -240,30 +255,14 @@ void move_values(Game &pos,int n,int m) {
         }
         else{std::cout<<" 0 ";}
     }
-    std::cout<<"\n";
+    std::cout<<"\n\n";
 
 }
 int main() {
-    auto pos=Game(grid_gen(5,4));
-    pos.make_move(9);
-    pos.make_move(14);
-    pos.make_move(5);
-    pos.make_move(12);
-    pos.make_move(17);
-    pos.make_move(7);
-    pos.make_move(1);
-    pos.make_move(15);
-    pos.make_move(11);
-    pos.make_move(3);
-    pos.make_move(0);
-    pos.make_move(19);
-    pos.make_move(4);
-    move_values(pos,5,4);
-
-    pos.make_move(heuristicsolve(pos));
-    ascii(pos.graph,5,4);
-    //move_values(pos,5,4);
-    //test();
+    int n=3;int m=3;
+    auto pos=Game(grid_gen(n,m));
+    move_values(pos,n,m);
+    std::cout<<error_count<<" "<<beta_count<<" "<<error_count/(beta_count+1);
 
 
     return 0;
